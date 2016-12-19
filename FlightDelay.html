@@ -1,0 +1,716 @@
+﻿<!DOCTYPE html>
+
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+    <meta charset="utf-8" />
+    <script src="http://d3js.org/d3.v3.min.js"></script>
+    <script src="http://dimplejs.org/dist/dimple.v2.0.0.min.js"></script>
+    <style>
+        div {
+            display: block;
+        }
+
+        #guide {
+            float: left;
+            width: 1000px;
+            height: 150px;
+        }
+
+        #guide1 {
+            float: left;
+            width: 100%;
+            height: 33%;
+            display: inline;
+        }
+
+        #guide2 {
+            float: left;
+            width: 100%;
+            height: 67%;
+            background: grey;
+        }
+
+        #wrapper {
+            float: left;
+            width: 1000px;
+            height: 680px;
+        }
+
+        #area0 {
+            float: left;
+            width: 13%;
+            height: 100%;
+        }
+
+        #area1 {
+            float: left;
+            width: 62%;
+            height: 60%;
+        }
+
+        #area2 {
+            float: left;
+            width: 87%;
+            height: 40%;
+        }
+
+        #area3 {
+            float: left;
+            width: 25%;
+            height: 60%;
+        }
+
+        #area3_1 {
+            float: left;
+            width: 100%;
+            height: 50%;
+        }
+
+        #area3_2 {
+            float: left;
+            width: 100%;
+            height: 50%;
+        }
+
+        h2 {
+            text-align: center;
+            font: 20px sans-serif;
+            font-weight: bold;
+        }
+
+        h3 {
+            text-align: left;
+            font: 16px sans-serif;
+            font-weight: normal;
+            color: white;
+        }
+
+        h4 {
+            display: block;
+            margin-top: 1.33em;
+            margin-bottom: 1.33em;
+            margin-left: 0;
+            margin-right: 0;
+            color: red;
+        }
+
+        div.month_buttons {
+            top: 30px;
+            left: 30px;
+            text-align: center;
+        }
+
+        div.fact_buttons {
+            top: 20%;
+            left: 30px;
+            text-align: center;
+            line-height: 25px;
+        }
+
+            div.fact_buttons div {
+                float: left;
+                display: inline;
+                width: 150px;
+                padding: 5px;
+                margin: 16px;
+                border: 2px solid black;
+                border-radius: 5px;
+                background: white;
+                color: black;
+            }
+
+        div.month_buttons div {
+            background-color: orange;
+            padding: 5px;
+            margin: 15px;
+        }
+
+        div.tooltip {
+            position: absolute;
+            text-align: center;
+            width: 120px;
+            height: 25px;
+            padding: 2px;
+            font: 10px sans-serif;
+            background: lightsteelblue;
+            border: 0px;
+            border-radius: 8px;
+            pointer-events: none;
+        }
+    </style>
+    <div id="guide">
+        <div id="guide1" , align="center"></div>
+        <div id="guide2" , align="center"></div>
+    </div>
+    <div id="wrapper">
+        <div id="area0" , align="center"></div>
+        <div id="area1" , align="center"></div>
+        <div id="area3" , align="center">
+            <div id="area3_1" ,aligh="center"></div>
+            <div id="area3_2" ,aligh="center"></div>
+        </div>
+        <div id="area2" , align="center"></div>
+    </div>
+
+    <script type="text/javascript">
+        var nq = [0, 1, 2, 3];
+        q_text = [];
+        nq.forEach(function (val, i) {
+            q_text[i] = "Fact " + (val + 1);
+        });
+        var fact_number = 0;
+        var month = 0;
+        var nm = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+        var months = [];
+        months[1] = 'January';
+        months[2] = 'February';
+        months[3] = 'March';
+        months[4] = 'April';
+        months[5] = 'May';
+        months[6] = 'June';
+        months[7] = 'July';
+        months[8] = 'August';
+        months[9] = 'September';
+        months[10] = 'October';
+        months[11] = 'November';
+        months[12] = 'December';
+        months[0] = 'Average';
+
+        function draw(geo_data) {
+            "use strict";
+            //*******************************************************************
+            //Read in airport.csv file to find longitude and latitude for airport code
+            var airport_dict;
+
+            function loadcsv(data) {
+                airport_dict = data;
+            };
+            d3.csv('airports.csv', function (d) {
+                d['iata'] = d['iata'];
+                d['lat'] = +d['lat'];
+                d['long'] = +d['long'];
+                return d;
+            }, loadcsv);
+
+            function airport_loc(airport_code) {
+                var result = airport_dict.find(function (v) {
+                    return v.iata == airport_code;
+                });
+                return {
+                    'lat': result.lat,
+                    'long': result.long
+                };
+            };
+            //*************************************************************
+
+            var margin = 75,
+                width = 900 - margin,
+                height = 510 - margin;
+            d3.select("#area1")
+                .append('h2')
+                .text('US Major Airports Weather Delay (2006-2015)');
+            d3.select("#area1")
+                .append('h4')
+                .text('Move mouse over location on map to display individual airport data.');
+            //create drawing areas
+            var svg = d3.select("#area1")
+                .append("svg")
+                .attr("width", width + margin)
+                .attr("height", height + margin)
+                .append('g')
+                .attr('class', 'map');
+            var svg2 = d3.select("#area2")
+                .append("svg")
+                .attr("width", 850)
+                .attr("height", 270)
+                .append('g')
+                .attr('class', 'chart')
+                .attr("align", "center");
+            var svg3 = d3.select("#area3_1")
+                .append("svg")
+                .attr("width", 250)
+                .attr("height", 200)
+                .append('g')
+                .attr('class', 'chart')
+                .attr("align", "center");
+            var svg4 = d3.select("#area3_2")
+                .append("svg")
+                .attr("width", 250)
+                .attr("height", 200)
+                .append('g')
+                .attr('class', 'chart')
+                .attr("align", "center");
+            //projection for imported map
+            var projection = d3.geo.mercator()
+                .scale(600)
+                .translate([width / 0.63, height / 0.75]);
+            // draw map
+            var path = d3.geo.path().projection(projection);
+            var map = svg.selectAll('path')
+                .data(geo_data.features)
+                .enter()
+                .append('path')
+                .attr('d', path)
+                .style('fill', 'lightBlue')
+                .style('stroke', 'black')
+                .style('stroke-width', 0.5);
+
+            // **************************************************************************
+            // Add circles for delay data
+            //****************************************************************************
+            function plot_points(data) {
+                data.forEach(function (d) {
+                    d['weather_delay_avg'] = d['weather_delay'] / 12;
+                    d['wd_ratio'] = d['weather_delay'] / d['arr_delay'];
+                    d['wd_ratio_avg'] = d['wd_ratio'] / 12.0;
+                });
+
+                function float2int(value) {
+                    return value | 0;
+                }
+                //
+                //make aggregation data
+                function agg_airport(leaves) {
+                    var total = d3.sum(leaves, function (d) {;
+                        return d['weather_delay'];
+                    });
+
+                    var airport = leaves[0].airport;
+                    var a = airport_loc(airport);
+                    var coords = projection([+a.long, +a.lat]);
+                    return {
+                        'airport': airport,
+                        'delay': float2int(total),
+                        'x': coords[0],
+                        'y': coords[1]
+                    };
+                };
+
+                var nested = d3.nest()
+                    .key(function (d) {
+                        return d['airport']; //grouping
+                    })
+                    .rollup(agg_airport) //aggregating
+                    .entries(data);
+                //average the delay montly to show similar range as monthly data
+                nested.map(function (d) {
+                    d.values['delay'] = d.values['delay'] / 12.0;
+                    return d;
+                });
+
+                var delay_max = d3.max(nested, function (d) {
+                    return d.values['delay'];
+                });
+                var radius = d3.scale.sqrt()
+                    .domain([0, delay_max])
+                    .range([0, 10]);
+
+                function key_func(d) {
+                    return d['key'];
+                };
+                //
+                //plot bar chart for airports
+                //
+                function plot_bar(data, month) {
+                    svg2.selectAll('*').remove();
+                    var area2_Chart = new dimple.chart(svg2, data);
+                    var x = area2_Chart.addCategoryAxis("x", "airport");
+                    if (month === 0) {
+                        var y = area2_Chart.addMeasureAxis("y", 'weather_delay_avg');
+                        y.title = 'Monthly Average Delay [hr]';
+                    } else {
+                        var y = area2_Chart.addMeasureAxis("y", 'weather_delay');
+                        y.title = 'Weather Delay in' + months[month] + '[hr]';
+                    };
+                    //x.addOrderRule("airport")
+                    y.overrideMax = 6000;
+                    area2_Chart.addSeries(null, dimple.plot.bar);
+                    area2_Chart.draw();
+                };
+                //plot delay across months
+                function plot_line_month(data, airport) {
+                    if (airport != 'All') {
+                        var airport_data = data.filter(function (d) {
+                            return d['airport'] === airport;
+                        })
+                    } else {
+                        airport_data = data;
+                    };
+                    svg3.selectAll('*').remove();
+
+                    svg3.append("text")
+                        .attr("x", 130)
+                        .attr("y", 30)
+                        .attr("text-anchor", "middle")
+                        .style("font-size", "12px")
+                        .style("text-decoration", "underline")
+                        .text("Monthly Weather Delay in Hours -" + airport);
+                    var area3_Chart = new dimple.chart(svg3, airport_data);
+                    var x = area3_Chart.addCategoryAxis("x", "month");
+                    var y = area3_Chart.addMeasureAxis("y", 'weather_delay');
+                    x.title = 'Month';
+                    y.title = 'Weather Delay [hr]';
+                    area3_Chart.setBounds(30, "50px", "80%", "50%");
+                    area3_Chart.addSeries(null, dimple.plot.line);
+                    area3_Chart.addSeries(null, dimple.plot.scatter);
+                    area3_Chart.draw();
+                    //highlight the current month
+                    var highlighted_id = "#All_" + month + "__";
+                    d3.select("#area3_1").selectAll(highlighted_id).attr('fill', 'red');
+                };
+                //plot the delay through years
+                function plot_line_year(data, airport) {
+                    if (airport != 'All') {
+                        var airport_data = data.filter(function (d) {
+                            return d['airport'] === airport;
+                        })
+                    } else {
+                        airport_data = data;
+                    };
+                    svg4.selectAll('*').remove();
+                    svg4.append("text")
+                        .attr("x", 130)
+                        .attr("y", 30)
+                        .attr("text-anchor", "middle")
+                        .style("font-size", "12px")
+                        .style("text-decoration", "underline")
+                        .text(months[month] + " Weather Delay in Hours -" + airport);
+                    var area4_Chart = new dimple.chart(svg4, airport_data);
+                    var x = area4_Chart.addCategoryAxis("x", "year");
+                    var y = area4_Chart.addMeasureAxis("y", 'weather_delay');
+                    x.title = 'Year'
+                    y.title = ' Weather Delay [hr]';
+                    area4_Chart.setBounds(30, "50px", "80%", "50%");
+                    area4_Chart.addSeries(null, dimple.plot.line);
+                    area4_Chart.addSeries(null, dimple.plot.scatter);
+                    area4_Chart.draw();
+                };
+
+                var div = d3.select("#area1").append("div")
+                    .attr("class", "tooltip")
+                    .style("opacity", 0);
+                svg.append('g')
+                    .attr("class", 'bubble')
+                    .selectAll("circle")
+                    .data(nested.sort(function (a, b) {
+                        return b.values['delay'] - a.values['delay'];
+                    }), key_func)
+                    .enter()
+                    .append("circle")
+                    .attr('id', function (d) {
+                        return d.values['airport'];
+                    })
+                    .attr('cx', function (d) {
+                        return d.values['x'];
+                    })
+                    .attr('cy', function (d) {
+                        return d.values['y'];
+                    })
+                    .attr('r', function (d) {
+                        return radius(d.values['delay']);
+                    })
+                    .attr('fill', 'orange')
+                    .attr('stroke', 'black')
+                    .attr('stroke-width', 0.7)
+                    .attr('opacity', 0.7)
+                    .on("mouseover", function (d) {
+                        div.transition()
+                            .duration(200)
+                            .style("opacity", .9);
+                        div.html("Airport: " + d.values['airport'] + "<br/>" + "Delay in hour: " + float2int(d.values['delay']))
+                            .style("left", (d3.event.pageX) + "px")
+                            .style("top", (d3.event.pageY - 28) + "px");
+                        d3.select(this)
+                            .transition()
+                            .duration(500)
+                            .attr('fill', 'red')
+                        //hight the bar for this current airport
+                        var selected_airport_id = '#All' + '_' + d3.select(this).attr('id') + '__';
+                        d3.select('#area2').select(selected_airport_id).attr('fill', 'red');
+                        var airport = d3.select(this).attr('id');
+                        plot_line_month(data, airport);
+                        plot_line_year(data, airport);
+                    })
+                    .on("mouseout", function (d) {
+                        d3.select(this)
+                            .transition()
+                            .duration(500)
+                            .attr('fill', 'orange')
+                        div.transition()
+                            .duration(500)
+                            .style("opacity", 0);
+                        //restore color for highlighted bar
+                        var selected_airport_id = '#All' + '_' + d3.select(this).attr('id') + '__';
+                        d3.select('#area2').select(selected_airport_id).attr('fill', '#80B1D3');
+                        plot_line_month(data, 'All');
+                        plot_line_year(data, 'All');
+                    });
+                //add new feature to calculate average monthly delay;
+
+
+
+                plot_bar(data, 0);
+                plot_line_month(data, 'All');
+                plot_line_year(data, 'All');
+                //plot one month
+
+
+                function plot_month(month) {
+                    //update title
+                    d3.select('h2')
+                        .text('US Major Airports Weather Delay in ' + months[month] + ' (2006-2015)');
+                    d3.select("#area3_2").style('background', 'white');
+                    //rebind
+
+                    var filtered_data = data.filter(function (d) {
+                        return d['month'] === month;
+                    });
+
+                    //if month==0, then it is the average monthly
+                    if (month === 0) {
+
+                        plot_bar(data, 0);
+                        plot_line_month(data, 'All');
+                        plot_line_year(data, 'All');
+                        var nested = d3.nest()
+                            .key(function (d) {
+                                return d['airport']; //grouping
+                            })
+                            .rollup(agg_airport) //aggregating
+                            .entries(data);
+                        nested.map(function (d) {
+                            d.values['delay'] = float2int(d.values['delay'] / 12.0);
+                            return d;
+                        });
+                    } else {
+                        plot_bar(filtered_data, month);
+                        plot_line_month(data, 'All');
+                        plot_line_year(filtered_data, 'All');
+                        var nested = d3.nest()
+                            .key(function (d) {
+                                return d['airport']; //grouping
+                            })
+                            .rollup(agg_airport) //aggregating
+                            .entries(filtered_data);
+                    }
+
+                    var circles = svg.selectAll('circle')
+                        .data(nested, key_func);
+
+                    //remove circles
+                    circles.exit().remove();
+                    //update circles
+                    circles.attr('cx', function (d) {
+                        return d.values['x'];
+                    })
+                        .attr('cy', function (d) {
+                            return d.values['y'];
+                        })
+                        .attr('r', function (d) {
+                            return radius(d.values['delay']);
+                        })
+                        .attr('fill', 'orange')
+                        .attr('stroke', 'black')
+                        .attr('stroke-width', 0.7)
+                        .attr('opacity', 0.7);
+
+                    //add any new circles
+                    circles.enter()
+                        .append("circle")
+                        .transition()
+                        .duration(500)
+                        .attr('cx', function (d) {
+                            return d.values['x'];
+                        })
+                        .attr('cy', function (d) {
+                            return d.values['y'];
+                        })
+                        .attr('r', function (d) {
+                            return radius(d.values['delay']);
+                        })
+                        .attr('fill', 'orange')
+                        .attr('stroke', 'black')
+                        .attr('stroke-width', 0.7)
+                        .attr('opacity', 0.7);
+
+                };
+
+                //Narrative Buttons for findings
+                var fact = [];
+                fact[0] = 'Click on a tab above. Or feel free to explore the data by yourself. Please be patient while loading.';
+                fact[1] = 'Atlanta airport has most weather related delay among 29 major airport in continent USA.' +
+                    'Portland Airport has least weather related delay among 29 major airport in continent USA';
+                fact[2] = 'June is the month of the year which has the most weather delay in all airport. ' +
+                    'November is the month with the least weather delay overall.';
+                fact[3] = 'Overall speaking weather related delay has been dropped since 2005 for the past ten years. ' +
+                    'This may be due to better airport facilities. ' +
+                    'However, for some airport it has slightly increased, such as San Francisco airport.';
+                fact[4] = 'Even though November is the best month in the year to avoid weather delay, it has been shown that the weather delay in November has increased for the past four years, especially for airport in the Chicago area. ' +
+                    'This could be due to the climate change that had brought big storms to midwest region but these airports were not well equipped for the change.';
+
+                function update_fact(fact_number) {
+                    d3.select('.month_buttons')
+                        .selectAll('div')
+                        .transition()
+                        .duration(500)
+                        .style('background', 'orange')
+                        .style('color', 'black');
+                    month = 0;
+                    plot_month(month);
+                    d3.select("#area3_2").style('background', 'white');
+                    d3.select('.month_buttons')
+                        .select('div')
+                        .transition()
+                        .duration(500)
+                        .style('background', 'lightBlue')
+                        .style('color', 'white');
+                    if (fact_number === 1) {
+                        ['ATL', 'PDX'].forEach(function (d) {
+                            var selected_airport_id = '#All' + '_' + d + '__';
+                            d3.select('#area2').select(selected_airport_id).attr('fill', 'red');
+                            var apid = '#' + d;
+                            d3.select("#area1").select(apid).attr('fill', 'red');
+                        });
+                    } else if (fact_number === 2) {
+                        [6, 11].forEach(function (d) {
+                            var highlighted_id = "#All_" + d + "__";
+                            d3.select("#area3_1").selectAll(highlighted_id).attr('fill', 'red');
+                        });
+
+                    } else if (fact_number === 3) {
+                        var airport = 'SFO'
+                        plot_line_month(data, airport);
+                        plot_line_year(data, airport);
+                        var apid = '#' + airport;
+                        d3.select("#area1").select(apid).attr('fill', 'red');
+                        d3.select("#area3_2").style('background', 'pink')
+                    } else {
+                        month = 11;
+                        plot_month(month);
+                        var airport = 'MDW'
+                        plot_line_month(data, airport);
+                        plot_line_year(data, airport);
+                        var apid = '#' + airport;
+                        d3.select("#area1").select(apid).attr('fill', 'red');
+                        d3.select("#area3_2").style('background', 'pink');
+                        d3.select('.month_buttons')
+                            .selectAll('div')
+                            .transition()
+                            .duration(500)
+                            .style('background', 'orange')
+                            .style('color', 'black');
+                        d3.select('.month_buttons')
+                            .select("#November")
+                            .transition()
+                            .duration(500)
+                            .style('background', 'lightBlue')
+                            .style('color', 'white');
+                    };
+                };
+
+                var month_interval = setInterval(function () {
+                    if (true) {
+                        clearInterval(month_interval);
+                        var buttons2 = d3.select("#guide1")
+                            .append('div')
+                            .attr("class", "fact_buttons")
+                            .selectAll('div')
+                            .data(nq)
+                            .enter()
+                            .append('div')
+                            .text(function (d) {
+                                return q_text[d];
+                            });
+                        d3.select('.fact_buttons')
+                            .selectAll('div')
+                            .transition()
+                            .duration(500);
+                        d3.select('#guide2')
+                            .append('h3')
+                            .text(fact[0]);
+                        //fact button clicked
+
+                        buttons2.on('click', function (d) {
+                            d3.select('.fact_buttons')
+                                .selectAll('div')
+                                .transition()
+                                .duration(500)
+                                .style('background', 'white')
+                                .style('color', 'black');
+                            d3.select(this)
+                                .transition()
+                                .duration(500)
+                                .style('background', 'grey')
+                                .style('color', 'white');
+                            fact_number = d + 1;
+                            d3.select('#guide2').select('h3').text(fact[fact_number]);
+                            update_fact(fact_number);
+                        });
+                    };
+                    if (true) {
+                        clearInterval(month_interval);
+                        var buttons = d3.select("#area0")
+                            .append('div')
+                            .attr("class", 'month_buttons')
+                            .selectAll('div')
+                            .data(nm)
+                            .enter()
+                            .append('div')
+                            .attr('id', function (d) {
+                                return months[d];
+                            })
+                            .text(function (d) {
+                                return months[d];
+                            });
+                        d3.select('.month_buttons')
+                            .select('div')
+                            .transition()
+                            .duration(500)
+                            .style('background', 'lightBlue')
+                            .style('color', 'white');
+
+                        //jquery even handler
+                        buttons.on('click', function (d) {
+                            d3.select('.month_buttons')
+                                .selectAll('div')
+                                .transition()
+                                .duration(500)
+                                .style('background', 'orange')
+                                .style('color', 'black');
+
+                            d3.select(this)
+                                .transition()
+                                .duration(500)
+                                .style('background', 'lightBlue')
+                                .style('color', 'white');
+                            month = d;
+                            plot_month(d);
+                        });
+                    };
+                }, 1000);
+            };
+            //*****************************************************************************************
+            d3.csv("flight_delay.csv", function (d) {
+                d['year'] = +d['year'];
+                d['month'] = +d['month'];
+                d['airport'] = d['airport'];
+                d['arr_delay'] = (+d['arr_delay']) / 60.0;
+                d['security_delay'] = (+d['security_delay']) / 60.0;
+                d['weather_delay'] = (+d['weather_delay']) / 60.0;
+                return d;
+            }, plot_points);
+        };
+    </script>
+</head>
+
+<body>
+    <script type="text/javascript">
+        /*
+                      Use D3 to load the GeoJSON file
+                      */
+        d3.json("USA.geo.json", draw);
+    </script>
+</body>
+
+</html>
