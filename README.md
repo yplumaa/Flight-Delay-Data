@@ -54,13 +54,6 @@ Feedbacks:
 1. Exploratory findings need to be added. (solution: Some findings were added as tabs above the charts, and corresponding map and charts are highlighted to draw attention.)
 
 
-Please note:
-
-the first version of file is named: index_old.html
-the 1st sumbmission is named: index_1st.html
-the 2nd sumbission is named: index_2nd.html
-the latest is named: index_new.html
-
 Resources:
 1. http://stat-computing.org/dataexpo/2009/supplemental-data.html
 2. http://www.transtats.bts.gov/
